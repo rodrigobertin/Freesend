@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: freesend_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: freesend
+      POSTGRES_USER: freesend
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-K9mP2xL8vN4qR7wT3jY5zA1bC6dE0fG}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U freesend -d freesend"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freesend_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - DATABASE_URL=postgresql://freesend:${POSTGRES_PASSWORD:-K9mP2xL8vN4qR7wT3jY5zA1bC6dE0fG}@postgres:5432/freesend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./.env.production:/app/.env.local:ro
+
+volumes:
+  postgres_data:
+    driver: local
